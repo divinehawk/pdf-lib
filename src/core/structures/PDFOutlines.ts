@@ -1,4 +1,5 @@
 import PDFDict, { DictMap } from 'src/core/objects/PDFDict';
+import PDFHexString from 'src/core/objects/PDFHexString';
 import PDFName from 'src/core/objects/PDFName';
 import PDFNumber from 'src/core/objects/PDFNumber';
 import PDFString from 'src/core/objects/PDFString';
@@ -25,7 +26,7 @@ class PDFOutlines extends PDFDict {
     if (!parent) {
       dict.set(PDFName.Type, PDFName.Outlines);
     } else {
-      dict.set(PDFName.Title, title ? PDFString.of(title) : title);
+      dict.set(PDFName.Title, title ? PDFHexString.fromText(title) : title);
       dict.set(PDFName.Parent, parent);
       dict.set(PDFName.Count, context.obj(0));
     }
