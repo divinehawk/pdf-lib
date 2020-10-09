@@ -29,6 +29,14 @@ class PDFDict extends PDFObject {
     this.context = context;
   }
 
+  keys(): PDFName[] {
+    return Array.from(this.dict.keys());
+  }
+
+  values(): PDFObject[] {
+    return Array.from(this.dict.values());
+  }
+
   entries(): [PDFName, PDFObject][] {
     return Array.from(this.dict.entries());
   }
@@ -37,12 +45,20 @@ class PDFDict extends PDFObject {
     this.dict.set(key, value);
   }
 
-  get(key: PDFName): PDFObject | undefined {
-    return this.dict.get(key);
+  get(
+    key: PDFName,
+    // TODO: `preservePDFNull` is for backwards compatibility. Should be
+    // removed in next breaking API change.
+    preservePDFNull = false,
+  ): PDFObject | undefined {
+    const value = this.dict.get(key);
+    if (value === PDFNull && !preservePDFNull) return undefined;
+    return value;
   }
 
   has(key: PDFName): boolean {
-    return this.dict.has(key);
+    const value = this.dict.get(key);
+    return value !== undefined && value !== PDFNull;
   }
 
   lookupMaybe(key: PDFName, type: typeof PDFArray): PDFArray | undefined;
@@ -58,9 +74,37 @@ class PDFDict extends PDFObject {
   lookupMaybe(key: PDFName, type: typeof PDFStream): PDFStream | undefined;
   lookupMaybe(key: PDFName, type: typeof PDFRef): PDFRef | undefined;
   lookupMaybe(key: PDFName, type: typeof PDFString): PDFString | undefined;
+  lookupMaybe(
+    ref: PDFName,
+    type1: typeof PDFString,
+    type2: typeof PDFHexString,
+  ): PDFString | PDFHexString | undefined;
+  lookupMaybe(
+    ref: PDFName,
+    type1: typeof PDFDict,
+    type2: typeof PDFStream,
+  ): PDFDict | PDFStream | undefined;
+  lookupMaybe(
+    ref: PDFName,
+    type1: typeof PDFString,
+    type2: typeof PDFHexString,
+    type3: typeof PDFArray,
+  ): PDFString | PDFHexString | PDFArray | undefined;
 
-  lookupMaybe(key: PDFName, type: any) {
-    return this.context.lookupMaybe(this.get(key), type) as any;
+  lookupMaybe(key: PDFName, ...types: any[]) {
+    // TODO: `preservePDFNull` is for backwards compatibility. Should be
+    // removed in next breaking API change.
+    const preservePDFNull = types.includes(PDFNull);
+
+    const value = this.context.lookupMaybe(
+      this.get(key, preservePDFNull),
+      // @ts-ignore
+      ...types,
+    ) as any;
+
+    if (value === PDFNull && !preservePDFNull) return undefined;
+
+    return value;
   }
 
   lookup(key: PDFName): PDFObject | undefined;
@@ -74,9 +118,37 @@ class PDFDict extends PDFObject {
   lookup(key: PDFName, type: typeof PDFStream): PDFStream;
   lookup(key: PDFName, type: typeof PDFRef): PDFRef;
   lookup(key: PDFName, type: typeof PDFString): PDFString;
+  lookup(
+    ref: PDFName,
+    type1: typeof PDFString,
+    type2: typeof PDFHexString,
+  ): PDFString | PDFHexString;
+  lookup(
+    ref: PDFName,
+    type1: typeof PDFDict,
+    type2: typeof PDFStream,
+  ): PDFDict | PDFStream;
+  lookup(
+    ref: PDFName,
+    type1: typeof PDFString,
+    type2: typeof PDFHexString,
+    type3: typeof PDFArray,
+  ): PDFString | PDFHexString | PDFArray;
 
-  lookup(key: PDFName, type?: any) {
-    return this.context.lookup(this.get(key), type) as any;
+  lookup(key: PDFName, ...types: any[]) {
+    // TODO: `preservePDFNull` is for backwards compatibility. Should be
+    // removed in next breaking API change.
+    const preservePDFNull = types.includes(PDFNull);
+
+    const value = this.context.lookup(
+      this.get(key, preservePDFNull),
+      // @ts-ignore
+      ...types,
+    ) as any;
+
+    if (value === PDFNull && !preservePDFNull) return undefined;
+
+    return value;
   }
 
   delete(key: PDFName): boolean {

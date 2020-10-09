@@ -41,14 +41,12 @@ describe(`PDFObjectParser`, () => {
   const origConsoleWarn = console.warn;
 
   beforeAll(() => {
+    const ignoredWarnings = [
+      'Parsed number that is too large for some PDF readers:',
+    ];
     console.warn = jest.fn((...args) => {
-      if (
-        !args[0].includes(
-          'Parsed number that is too large for some PDF readers:',
-        )
-      ) {
-        origConsoleWarn(...args);
-      }
+      const isIgnored = ignoredWarnings.find((iw) => args[0].includes(iw));
+      if (!isIgnored) origConsoleWarn(...args);
     });
   });
 
@@ -520,7 +518,7 @@ describe(`PDFObjectParser`, () => {
       expect(dict.get(PDFName.of('PDFNumber'))).toBeInstanceOf(PDFNumber);
       expect(dict.get(PDFName.of('PDFHexString'))).toBeInstanceOf(PDFHexString);
       expect(dict.get(PDFName.of('PDFBool'))).toBe(PDFBool.True);
-      expect(dict.get(PDFName.of('PDFNull'))).toBe(PDFNull);
+      expect(dict.get(PDFName.of('PDFNull'))).toBe(undefined);
     });
 
     it(`handles dictionaries with no whitespace or comments`, () => {

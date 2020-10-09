@@ -1,13 +1,12 @@
 import fs from 'fs';
 import { openPdf, Reader } from './open';
-
-import { PDFDocument, DisplayMode } from 'src/index';
+import { PDFDocument } from 'src/index';
 
 (async () => {
+  // Create a new PDFDocument
   const pdfDoc = await PDFDocument.create();
 
-  pdfDoc.setDisplayMode(DisplayMode.FullScreen);
-
+  // Add a blank page to the document
   pdfDoc.addPage();
   pdfDoc.addPage();
   pdfDoc.addPage();
@@ -90,7 +89,6 @@ import { PDFDocument, DisplayMode } from 'src/index';
 
   const pdfBytes = await pdfDoc.save();
 
-  fs.writeFileSync('./out.pdf', pdfBytes);
-
-  openPdf('./out.pdf', Reader.Preview);
+  fs.writeFileSync('out.pdf', pdfBytes);
+  openPdf('out.pdf', Reader.Preview);
 })();
