@@ -39,7 +39,6 @@ const IgnoredWarnings = [
   'Circular dependency: es\\api\\PDFPage.js -> es\\api\\PDFDocument.js -> es\\api\\form\\PDFForm.js -> es\\api\\form\\PDFOptionList.js -> es\\api\\PDFPage.js',
   'Circular dependency: es\\api\\PDFPage.js -> es\\api\\PDFDocument.js -> es\\api\\form\\PDFForm.js -> es\\api\\form\\PDFRadioGroup.js -> es\\api\\PDFPage.js',
   'Circular dependency: es\\api\\PDFPage.js -> es\\api\\PDFDocument.js -> es\\api\\form\\PDFForm.js -> es\\api\\form\\PDFTextField.js -> es\\api\\PDFPage.js',
-  'Circular dependency: es\\api\\PDFDocument.js -> es\\api\\PDFEmbeddedPage.js -> es\\api\\PDFDocument.js',
   'Circular dependency: es\\api\\PDFDocument.js -> es\\api\\PDFOutline.js -> es\\api\\PDFDocument.js',
   'Circular dependency: es\\api\\PDFDocument.js -> es\\api\\PDFOutline.js -> es\\api\\PDFPage.js -> es\\api\\PDFDocument.js',
 ];

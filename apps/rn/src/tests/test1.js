@@ -19,6 +19,7 @@ import {
   rgb,
   setLineJoin,
   StandardFonts,
+  AFRelationship,
 } from 'pdf-lib';
 
 import { fetchAsset } from './assets';
@@ -34,7 +35,7 @@ const ipsumLines = [
 export default async () => {
   const pdfDoc = await PDFDocument.create();
 
-  pdfDoc.setTitle('🥚 The Life of an Egg 🍳');
+  pdfDoc.setTitle('🥚 The Life of an Egg 🍳', { showInWindowTitleBar: true });
   pdfDoc.setAuthor('Humpty Dumpty');
   pdfDoc.setSubject('📘 An Epic Tale of Woe 📖');
   pdfDoc.setKeywords(['eggs', 'wall', 'fall', 'king', 'horses', 'men']);
@@ -53,6 +54,7 @@ export default async () => {
       description: 'A bird in greyscale 🐦',
       creationDate: new Date('2006/06/06'),
       modificationDate: new Date('2007/07/07'),
+      afRelationship: AFRelationship.Data,
     },
   );
 
@@ -66,11 +68,17 @@ export default async () => {
     description: 'Some car info 🚗',
     creationDate: new Date('2000/01/13'),
     modificationDate: new Date('2012/12/12'),
+    afRelationship: AFRelationship.Unspecified,
   });
 
   const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
 
   const size = 750;
+
+  pdfDoc.addJavaScript(
+    'main',
+    'console.show(); console.println("Hello World!")',
+  );
 
   /********************** Page 1 **********************/
 

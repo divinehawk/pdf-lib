@@ -14,13 +14,24 @@ export { default as PDFCrossRefSection } from 'src/core/document/PDFCrossRefSect
 export { default as StandardFontEmbedder } from 'src/core/embedders/StandardFontEmbedder';
 export { default as CustomFontEmbedder } from 'src/core/embedders/CustomFontEmbedder';
 export { default as CustomFontSubsetEmbedder } from 'src/core/embedders/CustomFontSubsetEmbedder';
-export { default as FileEmbedder } from 'src/core/embedders/FileEmbedder';
+export {
+  default as FileEmbedder,
+  AFRelationship,
+} from 'src/core/embedders/FileEmbedder';
 export { default as JpegEmbedder } from 'src/core/embedders/JpegEmbedder';
 export { default as PngEmbedder } from 'src/core/embedders/PngEmbedder';
 export {
   default as PDFPageEmbedder,
   PageBoundingBox,
 } from 'src/core/embedders/PDFPageEmbedder';
+
+export {
+  default as ViewerPreferences,
+  NonFullScreenPageMode,
+  ReadingDirection,
+  PrintScaling,
+  Duplex,
+} from 'src/core/interactive/ViewerPreferences';
 
 export { default as PDFObject } from 'src/core/objects/PDFObject';
 export { default as PDFBool } from 'src/core/objects/PDFBool';

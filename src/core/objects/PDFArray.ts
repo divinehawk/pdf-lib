@@ -11,6 +11,7 @@ import PDFString from 'src/core/objects/PDFString';
 import PDFContext from 'src/core/PDFContext';
 import CharCodes from 'src/core/syntax/CharCodes';
 import { PDFArrayIsNotRectangleError } from 'src/core/errors';
+import PDFRawStream from 'src/core/objects/PDFRawStream';
 
 class PDFArray extends PDFObject {
   static withContext = (context: PDFContext) => new PDFArray(context);
@@ -36,6 +37,11 @@ class PDFArray extends PDFObject {
     this.array.splice(index, 0, object);
   }
 
+  indexOf(object: PDFObject): number | undefined {
+    const index = this.array.indexOf(object);
+    return index === -1 ? undefined : index;
+  }
+
   remove(index: number): void {
     this.array.splice(index, 1);
   }
@@ -59,6 +65,10 @@ class PDFArray extends PDFObject {
   lookupMaybe(index: number, type: typeof PDFNull): typeof PDFNull | undefined;
   lookupMaybe(index: number, type: typeof PDFNumber): PDFNumber | undefined;
   lookupMaybe(index: number, type: typeof PDFStream): PDFStream | undefined;
+  lookupMaybe(
+    index: number,
+    type: typeof PDFRawStream,
+  ): PDFRawStream | undefined;
   lookupMaybe(index: number, type: typeof PDFRef): PDFRef | undefined;
   lookupMaybe(index: number, type: typeof PDFString): PDFString | undefined;
   lookupMaybe(
@@ -84,6 +94,7 @@ class PDFArray extends PDFObject {
   lookup(index: number, type: typeof PDFNull): typeof PDFNull;
   lookup(index: number, type: typeof PDFNumber): PDFNumber;
   lookup(index: number, type: typeof PDFStream): PDFStream;
+  lookup(index: number, type: typeof PDFRawStream): PDFRawStream;
   lookup(index: number, type: typeof PDFRef): PDFRef;
   lookup(index: number, type: typeof PDFString): PDFString;
   lookup(

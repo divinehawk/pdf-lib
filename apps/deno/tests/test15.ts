@@ -1,4 +1,6 @@
 import { Assets } from '../index.ts';
+
+// @deno-types="../dummy.d.ts"
 import {
   PDFDocument,
   StandardFonts,
@@ -44,7 +46,7 @@ export default async (assets: Assets) => {
     );
 
   form.getTextField('FactionName').setText(`Mario's Emblem`);
-  form.getButton('Faction Symbol Image').setImage(emblemImage);
+  form.getTextField('Faction Symbol Image').setImage(emblemImage);
 
   form
     .getTextField('Backstory')

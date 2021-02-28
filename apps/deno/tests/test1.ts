@@ -1,5 +1,7 @@
-import fontkit from 'https://cdn.pika.dev/@pdf-lib/fontkit@^1.0.0';
+import fontkit from 'https://cdn.skypack.dev/@pdf-lib/fontkit@^1.0.0?dts';
 import { Assets } from '../index.ts';
+
+// @deno-types="../dummy.d.ts"
 import {
   clip,
   clipEvenOdd,
@@ -20,6 +22,7 @@ import {
   rgb,
   setLineJoin,
   StandardFonts,
+  AFRelationship,
 } from '../../../dist/pdf-lib.esm.js';
 
 const ipsumLines = [
@@ -33,7 +36,7 @@ const ipsumLines = [
 export default async (assets: Assets) => {
   const pdfDoc = await PDFDocument.create();
 
-  pdfDoc.setTitle('🥚 The Life of an Egg 🍳');
+  pdfDoc.setTitle('🥚 The Life of an Egg 🍳', { showInWindowTitleBar: true });
   pdfDoc.setAuthor('Humpty Dumpty');
   pdfDoc.setSubject('📘 An Epic Tale of Woe 📖');
   pdfDoc.setKeywords(['eggs', 'wall', 'fall', 'king', 'horses', 'men']);
@@ -49,6 +52,7 @@ export default async (assets: Assets) => {
     description: 'A bird in greyscale 🐦',
     creationDate: new Date('2006/06/06'),
     modificationDate: new Date('2007/07/07'),
+    afRelationship: AFRelationship.Data,
   });
 
   const csvString = [
@@ -61,11 +65,17 @@ export default async (assets: Assets) => {
     description: 'Some car info 🚗',
     creationDate: new Date('2000/01/13'),
     modificationDate: new Date('2012/12/12'),
+    afRelationship: AFRelationship.Unspecified,
   });
 
   const timesRomanFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
 
   const size = 750;
+
+  pdfDoc.addJavaScript(
+    'main',
+    'console.show(); console.println("Hello World!")',
+  );
 
   /********************** Page 1 **********************/
 

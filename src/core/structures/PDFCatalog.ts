@@ -5,6 +5,7 @@ import PDFContext from 'src/core/PDFContext';
 import PDFOutlines from 'src/core/structures/PDFOutlines';
 import PDFPageTree from 'src/core/structures/PDFPageTree';
 import { PDFAcroForm } from 'src/core/acroform';
+import ViewerPreferences from '../interactive/ViewerPreferences';
 
 class PDFCatalog extends PDFDict {
   static withContextAndPages = (
@@ -50,6 +51,26 @@ class PDFCatalog extends PDFDict {
     return acroForm;
   }
 
+  ViewerPreferences(): PDFDict | undefined {
+    return this.lookupMaybe(PDFName.of('ViewerPreferences'), PDFDict);
+  }
+
+  getViewerPreferences(): ViewerPreferences | undefined {
+    const dict = this.ViewerPreferences();
+    if (!dict) return undefined;
+    return ViewerPreferences.fromDict(dict);
+  }
+
+  getOrCreateViewerPreferences(): ViewerPreferences {
+    let viewerPrefs = this.getViewerPreferences();
+    if (!viewerPrefs) {
+      viewerPrefs = ViewerPreferences.create(this.context);
+      const viewerPrefsRef = this.context.register(viewerPrefs.dict);
+      this.set(PDFName.of('ViewerPreferences'), viewerPrefsRef);
+    }
+    return viewerPrefs;
+  }
+
   /**
    * Inserts the given ref as a leaf node of this catalog's page tree at the
    * specified index (zero-based). Also increments the `Count` of each node in
@@ -68,17 +89,17 @@ class PDFCatalog extends PDFDict {
   }
 
   /**
-   * Inserts the given ref as a top-level outline of this catalog's outlines at the
-   * specified index (zero-based). The `Count` will be recalculated before
-   * save.
-   *
-   * Returns the ref of the PDFOutline into which `outlineRef` was inserted.
-   */
-  insertOutlineItem(outlineRef: PDFRef, index: number): PDFRef {
-    const outlinesRef = this.get(PDFName.Outlines) as PDFRef;
-    this.Outlines().insertOutlineItem(outlinesRef, outlineRef, index);
-    return outlinesRef;
-  }
+  * Inserts the given ref as a top-level outline of this catalog's outlines at the
+  * specified index (zero-based). The `Count` will be recalculated before
+  * save.
+  *
+  * Returns the ref of the PDFOutline into which `outlineRef` was inserted.
+  */
+ insertOutlineItem(outlineRef: PDFRef, index: number): PDFRef {
+   const outlinesRef = this.get(PDFName.Outlines) as PDFRef;
+   this.Outlines().insertOutlineItem(outlinesRef, outlineRef, index);
+   return outlinesRef;
+ }
 }
 
 export default PDFCatalog;

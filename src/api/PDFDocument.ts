@@ -40,19 +40,21 @@ import {
 } from 'src/core';
 import {
   ParseSpeeds,
-  DisplayMode,
   AttachmentOptions,
   SaveOptions,
   Base64SaveOptions,
   LoadOptions,
   CreateOptions,
   EmbedFontOptions,
+  SetTitleOptions,
 } from 'src/api/PDFDocumentOptions';
 import PDFObject from 'src/core/objects/PDFObject';
+import PDFRef from 'src/core/objects/PDFRef';
 import { Fontkit } from 'src/types/fontkit';
 import { TransformationMatrix } from 'src/types/matrix';
 import {
   assertIs,
+  assertIsOneOfOrUndefined,
   assertOrUndefined,
   assertRange,
   Cache,
@@ -63,8 +65,10 @@ import {
   range,
   toUint8Array,
 } from 'src/utils';
-import FileEmbedder from 'src/core/embedders/FileEmbedder';
+import FileEmbedder, { AFRelationship } from 'src/core/embedders/FileEmbedder';
 import PDFEmbeddedFile from 'src/api/PDFEmbeddedFile';
+import PDFJavaScript from 'src/api/PDFJavaScript';
+import JavaScriptEmbedder from 'src/core/embedders/JavaScriptEmbedder';
 
 /**
  * Represents a PDF document.
@@ -158,14 +162,10 @@ export default class PDFDocument {
 
     const context = PDFContext.create();
     const pageTree = PDFPageTree.withContext(context);
-    const pageTreeRef = context.register(pageTree);    
+    const pageTreeRef = context.register(pageTree);
     const outlines = PDFOutlines.withContext(context, { expanded: true });
     const outlinesRef = context.register(outlines);
-    const catalog = PDFCatalog.withContextAndPages(
-      context,
-      pageTreeRef,
-      outlinesRef,
-    );
+    const catalog = PDFCatalog.withContextAndPages(context, pageTreeRef, outlinesRef);
     context.trailerInfo.Root = context.register(catalog);
 
     return new PDFDocument(context, false, updateMetadata);
@@ -194,6 +194,7 @@ export default class PDFDocument {
   private readonly images: PDFImage[];
   private readonly embeddedPages: PDFEmbeddedPage[];
   private readonly embeddedFiles: PDFEmbeddedFile[];
+  private readonly javaScripts: PDFJavaScript[];
 
   private constructor(
     context: PDFContext,
@@ -206,6 +207,7 @@ export default class PDFDocument {
     this.context = context;
     this.catalog = context.lookup(context.trailerInfo.Root) as PDFCatalog;
     this.isEncrypted = !!context.lookup(context.trailerInfo.Encrypt);
+
     this.outlineCache = Cache.populatedBy(this.computeOutlines);
     this.outlineMap = new Map();
     this.pageCache = Cache.populatedBy(this.computePages);
@@ -215,6 +217,7 @@ export default class PDFDocument {
     this.images = [];
     this.embeddedPages = [];
     this.embeddedFiles = [];
+    this.javaScripts = [];
 
     if (!ignoreEncryption && this.isEncrypted) throw new EncryptedPDFError();
 
@@ -397,12 +400,27 @@ export default class PDFDocument {
    * ```js
    * pdfDoc.setTitle('🥚 The Life of an Egg 🍳')
    * ```
+   *
+   * To display the title in the window's title bar, set the
+   * `showInWindowTitleBar` option to `true` (works for _most_ PDF readers).
+   * For example:
+   * ```js
+   * pdfDoc.setTitle('🥚 The Life of an Egg 🍳', { showInWindowTitleBar: true })
+   * ```
+   *
    * @param title The title of this document.
+   * @param options The options to be used when setting the title.
    */
-  setTitle(title: string): void {
+  setTitle(title: string, options?: SetTitleOptions): void {
     assertIs(title, 'title', ['string']);
     const key = PDFName.of('Title');
     this.getInfoDict().set(key, PDFHexString.fromText(title));
+
+    // Indicate that readers should display the title rather than the filename
+    if (options?.showInWindowTitleBar) {
+      const prefs = this.catalog.getOrCreateViewerPreferences();
+      prefs.setDisplayDocTitle(true);
+    }
   }
 
   /**
@@ -521,29 +539,13 @@ export default class PDFDocument {
   }
 
   /**
-   * Set this document's DisplayMode (PageMode). This will specify how the document shall
-   * be displayed when opened. For example:
-   * ```js
-   * pdfDoc.setDisplayMode(DisplayMode.FullScreen)
-   * ```
-   * This will cause the document to be opened in full-screen mode.
-   *
-   * @param DisplayMode The options are: None, UseOutlines, ShowThumbnails, FullScreen, ShowOptionalContent, ShowAttachments.
-   */
-  setDisplayMode(mode: DisplayMode): void {
-    // assertIs(mode, 'mode', [[DisplayMode, 'DisplayMode']]);
-    const key = PDFName.PageMode;
-    this.catalog.set(key, PDFName.of(mode));
-  }
-
-  /**
-   * Get the root Outlines of the document (12.3.3). For
-   * example:
-   * ```js
-   * const outlines = pdfDoc.getOutlines()
-   * ```
-   * @returns the root outlines for this document.
-   */
+  * Get the root Outlines of the document (12.3.3). For
+  * example:
+  * ```js
+  * const outlines = pdfDoc.getOutlines()
+  * ```
+  * @returns the root outlines for this document.
+  */
   getOutlines(): PDFOutline[] {
     return this.outlineCache.access();
   }
@@ -635,6 +637,7 @@ export default class PDFDocument {
   }
 
   /**
+  
    * Get the number of pages contained in this document. For example:
    * ```js
    * const totalPages = pdfDoc.getPageCount()
@@ -841,6 +844,41 @@ export default class PDFDocument {
   }
 
   /**
+   * Add JavaScript to this document. The supplied `script` is executed when the
+   * document is opened. The `script` can be used to perform some operation
+   * when the document is opened (e.g. logging to the console), or it can be
+   * used to define a function that can be referenced later in a JavaScript
+   * action. For example:
+   * ```js
+   * // Show "Hello World!" in the console when the PDF is opened
+   * pdfDoc.addJavaScript(
+   *   'main',
+   *   'console.show(); console.println("Hello World!");'
+   * );
+   *
+   * // Define a function named "foo" that can be called in JavaScript Actions
+   * pdfDoc.addJavaScript(
+   *   'foo',
+   *   'function foo() { return "foo"; }'
+   * );
+   * ```
+   * See the [JavaScript for Acrobat API Reference](https://www.adobe.com/content/dam/acom/en/devnet/acrobat/pdfs/js_api_reference.pdf)
+   * for details.
+   * @param name The name of the script. Must be unique per document.
+   * @param script The JavaScript to execute.
+   */
+  addJavaScript(name: string, script: string) {
+    assertIs(name, 'name', ['string']);
+    assertIs(script, 'script', ['string']);
+
+    const embedder = JavaScriptEmbedder.for(script, name);
+
+    const ref = this.context.nextRef();
+    const javaScript = PDFJavaScript.of(ref, this, embedder);
+    this.javaScripts.push(javaScript);
+  }
+
+  /**
    * Add an attachment to this document. Attachments are visible in the
    * "Attachments" panel of Adobe Acrobat and some other PDF readers. Any
    * type of file can be added as an attachment. This includes, but is not
@@ -908,6 +946,11 @@ export default class PDFDocument {
     assertOrUndefined(options.modificationDate, 'options.modificationDate', [
       Date,
     ]);
+    assertIsOneOfOrUndefined(
+      options.afRelationship,
+      'options.afRelationship',
+      AFRelationship,
+    );
 
     const bytes = toUint8Array(attachment);
     const embedder = FileEmbedder.for(bytes, name, options);
@@ -956,7 +999,7 @@ export default class PDFDocument {
     font: StandardFonts | string | Uint8Array | ArrayBuffer,
     options: EmbedFontOptions = {},
   ): Promise<PDFFont> {
-    const { subset = false, customName } = options;
+    const { subset = false, customName, features } = options;
 
     assertIs(font, 'font', ['string', Uint8Array, ArrayBuffer]);
     assertIs(subset, 'subset', ['boolean']);
@@ -968,8 +1011,13 @@ export default class PDFDocument {
       const bytes = toUint8Array(font);
       const fontkit = this.assertFontkit();
       embedder = subset
-        ? await CustomFontSubsetEmbedder.for(fontkit, bytes, customName)
-        : await CustomFontEmbedder.for(fontkit, bytes, customName);
+        ? await CustomFontSubsetEmbedder.for(
+            fontkit,
+            bytes,
+            customName,
+            features,
+          )
+        : await CustomFontEmbedder.for(fontkit, bytes, customName, features);
     } else {
       throw new TypeError(
         '`font` must be one of `StandardFonts | string | Uint8Array | ArrayBuffer`',
@@ -1269,6 +1317,7 @@ export default class PDFDocument {
     await this.embedAll(this.images);
     await this.embedAll(this.embeddedPages);
     await this.embedAll(this.embeddedFiles);
+    await this.embedAll(this.javaScripts);
   }
 
   /**
@@ -1336,6 +1385,20 @@ export default class PDFDocument {
     const bytes = await this.save(otherOptions);
     const base64 = encodeToBase64(bytes);
     return dataUri ? `data:application/pdf;base64,${base64}` : base64;
+  }
+
+  findPageForAnnotationRef(ref: PDFRef): PDFPage | undefined {
+    const pages = this.getPages();
+    for (let idx = 0, len = pages.length; idx < len; idx++) {
+      const page = pages[idx];
+      const annotations = page.node.Annots();
+
+      if (annotations?.indexOf(ref) !== undefined) {
+        return page;
+      }
+    }
+
+    return undefined;
   }
 
   private async embedAll(embeddables: Embeddable[]): Promise<void> {

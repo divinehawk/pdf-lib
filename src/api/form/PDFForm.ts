@@ -1,4 +1,5 @@
 import PDFDocument from 'src/api/PDFDocument';
+import PDFPage from 'src/api/PDFPage';
 import PDFField from 'src/api/form/PDFField';
 import PDFButton from 'src/api/form/PDFButton';
 import PDFCheckBox from 'src/api/form/PDFCheckBox';
@@ -15,7 +16,13 @@ import {
 } from 'src/api/errors';
 import PDFFont from 'src/api/PDFFont';
 import { StandardFonts } from 'src/api/StandardFonts';
-
+import { rotateInPlace } from 'src/api/operations';
+import {
+  drawObject,
+  popGraphicsState,
+  pushGraphicsState,
+  translate,
+} from 'src/api/operators';
 import {
   PDFAcroForm,
   PDFAcroField,
@@ -27,11 +34,18 @@ import {
   PDFAcroText,
   PDFAcroPushButton,
   PDFAcroNonTerminal,
+  PDFDict,
+  PDFOperator,
   PDFRef,
   createPDFAcroFields,
   PDFName,
+  PDFWidgetAnnotation,
 } from 'src/core';
-import { assertIs, Cache, assertOrUndefined } from 'src/utils';
+import { addRandomSuffix, assertIs, Cache, assertOrUndefined } from 'src/utils';
+
+export interface FlattenOptions {
+  updateFieldAppearances: boolean;
+}
 
 /**
  * Represents the interactive form of a [[PDFDocument]].
@@ -500,6 +514,92 @@ export default class PDFForm {
   }
 
   /**
+   * Flatten all fields in this [[PDFForm]].
+   *
+   * Flattening a form field will take the current appearance for each of that
+   * field's widgets and make them part of their page's content stream. All form
+   * fields and annotations associated are then removed. Note that once a form
+   * has been flattened its fields can no longer be accessed or edited.
+   *
+   * This operation is often used after filling form fields to ensure a
+   * consistent appearance across different PDF readers and/or printers.
+   * Another common use case is to copy a template document with form fields
+   * into another document. In this scenario you would load the template
+   * document, fill its fields, flatten it, and then copy its pages into the
+   * recipient document - the filled fields will be copied over.
+   *
+   * For example:
+   * ```js
+   * const form = pdfDoc.getForm();
+   * form.flatten();
+   * ```
+   */
+  flatten(options: FlattenOptions = { updateFieldAppearances: true }) {
+    if (options.updateFieldAppearances) {
+      this.updateFieldAppearances();
+    }
+
+    const fields = this.getFields();
+
+    for (let i = 0, lenFields = fields.length; i < lenFields; i++) {
+      const field = fields[i];
+      const widgets = field.acroField.getWidgets();
+
+      for (let j = 0, lenWidgets = widgets.length; j < lenWidgets; j++) {
+        const widget = widgets[j];
+        const page = this.findWidgetPage(widget);
+        const widgetRef = this.findWidgetAppearanceRef(field, widget);
+
+        const xObjectKey = addRandomSuffix('FlatWidget', 10);
+        page.node.setXObject(PDFName.of(xObjectKey), widgetRef);
+
+        const rectangle = widget.getRectangle();
+
+        const operators = [
+          pushGraphicsState(),
+          translate(rectangle.x, rectangle.y),
+          ...rotateInPlace({ ...rectangle, rotation: 0 }),
+          drawObject(xObjectKey),
+          popGraphicsState(),
+        ].filter(Boolean) as PDFOperator[];
+
+        page.pushOperators(...operators);
+      }
+
+      this.removeField(field);
+    }
+  }
+
+  /**
+   * Remove a field from this [[PDFForm]].
+   *
+   * For example:
+   * ```js
+   * const form = pdfDoc.getForm();
+   * const ageField = form.getFields().find(x => x.getName() === 'Age');
+   * form.removeField(ageField);
+   * ```
+   */
+  removeField(field: PDFField) {
+    const widgets = field.acroField.getWidgets();
+    const pages: Set<PDFPage> = new Set();
+
+    for (let i = 0, len = widgets.length; i < len; i++) {
+      const widget = widgets[i];
+      const widgetRef = this.findWidgetAppearanceRef(field, widget);
+
+      const page = this.findWidgetPage(widget);
+      pages.add(page);
+
+      page.node.removeAnnot(widgetRef);
+    }
+
+    pages.forEach((page) => page.node.removeAnnot(field.ref));
+    this.acroForm.removeField(field.acroField);
+    this.doc.context.delete(field.ref);
+  }
+
+  /**
    * Update the appearance streams for all widgets of all fields in this
    * [[PDFForm]]. Appearance streams will only be created for a widget if it
    * does not have any existing appearance streams, or the field's value has
@@ -590,6 +690,51 @@ export default class PDFForm {
 
   getDefaultFont() {
     return this.defaultFontCache.access();
+  }
+
+  private findWidgetPage(widget: PDFWidgetAnnotation): PDFPage {
+    const pageRef = widget.P();
+    let page = this.doc.getPages().find((x) => x.ref === pageRef);
+    if (page === undefined) {
+      const widgetRef = this.doc.context.getObjectRef(widget.dict);
+      if (widgetRef === undefined) {
+        throw new Error('Could not find PDFRef for PDFObject');
+      }
+
+      page = this.doc.findPageForAnnotationRef(widgetRef);
+
+      if (page === undefined) {
+        throw new Error(`Could not find page for PDFRef ${widgetRef}`);
+      }
+    }
+
+    return page;
+  }
+
+  private findWidgetAppearanceRef(
+    field: PDFField,
+    widget: PDFWidgetAnnotation,
+  ): PDFRef {
+    let refOrDict = widget.getNormalAppearance();
+
+    if (
+      refOrDict instanceof PDFDict &&
+      (field instanceof PDFCheckBox || field instanceof PDFRadioGroup)
+    ) {
+      const value = field.acroField.getValue();
+      const ref = refOrDict.get(value) ?? refOrDict.get(PDFName.of('Off'));
+
+      if (ref instanceof PDFRef) {
+        refOrDict = ref;
+      }
+    }
+
+    if (!(refOrDict instanceof PDFRef)) {
+      const name = field.getName();
+      throw new Error(`Failed to extract appearance ref for: ${name}`);
+    }
+
+    return refOrDict;
   }
 
   private findOrCreateNonTerminals(partialNames: string[]) {

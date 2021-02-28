@@ -1,19 +1,11 @@
 import { EmbeddedFileOptions } from 'src/core/embedders/FileEmbedder';
+import { TypeFeatures } from 'src/types/fontkit';
 
 export enum ParseSpeeds {
   Fastest = Infinity,
   Fast = 1500,
   Medium = 500,
   Slow = 100,
-}
-
-export enum DisplayMode {
-  None = 'UseNone',
-  UseOutlines = 'UseOutlines',
-  ShowThumbnails = 'UseThumbs',
-  FullScreen = 'FullScreen',
-  ShowOptionalContent = 'UseOC',
-  ShowAttachments = 'UseAttachments',
 }
 
 export interface AttachmentOptions extends EmbeddedFileOptions {}
@@ -44,4 +36,9 @@ export interface CreateOptions {
 export interface EmbedFontOptions {
   subset?: boolean;
   customName?: string;
+  features?: TypeFeatures;
+}
+
+export interface SetTitleOptions {
+  showInWindowTitleBar: boolean;
 }

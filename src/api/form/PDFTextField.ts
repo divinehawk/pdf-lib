@@ -1,6 +1,7 @@
 import PDFDocument from 'src/api/PDFDocument';
 import PDFPage from 'src/api/PDFPage';
 import PDFFont from 'src/api/PDFFont';
+import PDFImage from 'src/api/PDFImage';
 import PDFField, {
   FieldAppearanceOptions,
   assertFieldAppearanceOptions,
@@ -17,6 +18,7 @@ import {
   ExceededMaxLengthError,
   InvalidMaxLengthError,
 } from 'src/api/errors';
+import { ImageAlignment } from 'src/api/image/alignment';
 import { TextAlignment } from 'src/api/text/alignment';
 
 import {
@@ -31,6 +33,7 @@ import {
   assertIs,
   assertIsOneOf,
   assertOrUndefined,
+  assertPositive,
   assertRangeOrUndefined,
 } from 'src/utils';
 
@@ -278,6 +281,65 @@ export default class PDFTextField extends PDFField {
   removeMaxLength() {
     this.markAsDirty();
     this.acroField.removeMaxLength();
+  }
+
+  /**
+   * Display an image inside the bounds of this text field's widgets. For example:
+   * ```js
+   * const pngImage = await pdfDoc.embedPng(...)
+   * const textField = form.getTextField('some.text.field')
+   * textField.setImage(pngImage)
+   * ```
+   * This will update the appearances streams for each of this text field's widgets.
+   * @param image The image that should be displayed.
+   */
+  setImage(image: PDFImage) {
+    const fieldAlignment = this.getAlignment();
+
+    // prettier-ignore
+    const alignment = 
+        fieldAlignment === TextAlignment.Center ? ImageAlignment.Center
+      : fieldAlignment === TextAlignment.Right ? ImageAlignment.Right
+      : ImageAlignment.Left;
+
+    const widgets = this.acroField.getWidgets();
+    for (let idx = 0, len = widgets.length; idx < len; idx++) {
+      const widget = widgets[idx];
+      const streamRef = this.createImageAppearanceStream(
+        widget,
+        image,
+        alignment,
+      );
+      this.updateWidgetAppearances(widget, { normal: streamRef });
+    }
+
+    this.markAsClean();
+  }
+
+  /**
+   * Set the font size for this field. Larger font sizes will result in larger
+   * text being displayed when PDF readers render this text field. Font sizes
+   * may be integer or floating point numbers. Supplying a negative font size
+   * will cause this method to throw an error.
+   *
+   * For example:
+   * ```js
+   * const textField = form.getTextField('some.text.field')
+   * textField.setFontSize(4)
+   * textField.setFontSize(15.7)
+   * ```
+   *
+   * > This method depends upon the existence of a default appearance
+   * > (`/DA`) string. If this field does not have a default appearance string,
+   * > or that string does not contain a font size (via the `Tf` operator),
+   * > then this method will throw an error.
+   *
+   * @param fontSize The font size to be used when rendering text in this field.
+   */
+  setFontSize(fontSize: number) {
+    assertPositive(fontSize, 'fontSize');
+    this.acroField.setFontSize(fontSize);
+    this.markAsDirty();
   }
 
   /**
@@ -667,6 +729,7 @@ export default class PDFTextField extends PDFField {
       borderColor: options.borderColor,
       borderWidth: options.borderWidth ?? 0,
       rotate: options.rotate ?? degrees(0),
+      hidden: options.hidden,
     });
     const widgetRef = this.doc.context.register(widget.dict);
 

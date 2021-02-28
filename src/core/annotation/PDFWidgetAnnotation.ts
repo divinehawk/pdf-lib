@@ -40,12 +40,24 @@ class PDFWidgetAnnotation extends PDFAnnotation {
     return undefined;
   }
 
+  P(): PDFRef | undefined {
+    const P = this.dict.get(PDFName.of('P'));
+    if (P instanceof PDFRef) return P;
+    return undefined;
+  }
+
   setDefaultAppearance(appearance: string) {
     this.dict.set(PDFName.of('DA'), PDFString.of(appearance));
   }
 
   getDefaultAppearance(): string | undefined {
-    return this.DA()?.asString() ?? '';
+    const DA = this.DA();
+
+    if (DA instanceof PDFHexString) {
+      return DA.decodeText();
+    }
+
+    return DA?.asString();
   }
 
   getAppearanceCharacteristics(): AppearanceCharacteristics | undefined {

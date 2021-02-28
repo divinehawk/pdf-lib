@@ -3,91 +3,38 @@ import { openPdf, Reader } from './open';
 import { PDFDocument } from 'src/index';
 
 (async () => {
-  // Create a new PDFDocument
-  const pdfDoc = await PDFDocument.create();
+  // This should be a Uint8Array or ArrayBuffer
+  // This data can be obtained in a number of different ways
+  // If your running in a Node environment, you could use fs.readFile()
+  // In the browser, you could make a fetch() call and use res.arrayBuffer()
+  const existingPdfBytes = fs.readFileSync('assets/pdfs/with_viewer_prefs.pdf');
 
-  // Add a blank page to the document
-  pdfDoc.addPage();
-  pdfDoc.addPage();
-  pdfDoc.addPage();
-  pdfDoc.addPage();
-  pdfDoc.addPage();
-  pdfDoc.addPage();
-  pdfDoc.addPage();
-  
-  /* Declaration required for testing removing below */
-  // const first = 
-  pdfDoc.addOutline('First Outline', { expanded: true, page: pdfDoc.getPage(0) });
-  const outline = pdfDoc.addOutline('Second Outline (Page2)', {
-    expanded: false,
-    page: pdfDoc.getPage(1),
-  });
-  const suboutline = outline.addOutline('Child of Second (Page3)', {
-    expanded: true,
-    page: pdfDoc.getPage(2),
-  });
-  suboutline.addOutline('Grandchild of Second (Page4)', { expanded: true, page: pdfDoc.getPage(3) });
-  outline.addOutline('Another Child of Second (Page5)', {
-    expanded: true,
-    page: pdfDoc.getPage(4),
-  });
-  const thirdChild = outline.addOutline('3rd Child of Second (Page5)', {
-    expanded: true,
-    page: pdfDoc.getPage(4),
-  });
-  thirdChild.addOutline('3rd`s progeny');
-  outline.addOutline('4th Child of Second (Page5)', {
-    expanded: true,
-    page: pdfDoc.getPage(4),
-  });
-  pdfDoc.addOutline('Third Outline (Page6)', { expanded: true, page: pdfDoc.getPage(5) });
-  pdfDoc.addOutline('Fourth Outline (Page7)', { expanded: true, page: pdfDoc.getPage(6) });
+  // Load a PDFDocument without updating its existing metadata
+  const pdfDoc = await PDFDocument.load(existingPdfBytes);
+  const viewerPrefs = pdfDoc.catalog.getOrCreateViewerPreferences();
 
+  // Print all available viewer preference fields
+  console.log('HideToolbar:', viewerPrefs.getHideToolbar());
+  console.log('HideMenubar:', viewerPrefs.getHideMenubar());
+  console.log('HideWindowUI:', viewerPrefs.getHideWindowUI());
+  console.log('FitWindow:', viewerPrefs.getFitWindow());
+  console.log('CenterWindow:', viewerPrefs.getCenterWindow());
+  console.log('DisplayDocTitle:', viewerPrefs.getDisplayDocTitle());
+  console.log('NonFullScreenPageMode:', viewerPrefs.getNonFullScreenPageMode());
+  console.log('ReadingDirection:', viewerPrefs.getReadingDirection());
+  console.log('PrintScaling:', viewerPrefs.getPrintScaling());
+  console.log('Duplex:', viewerPrefs.getDuplex());
+  console.log('PickTrayByPDFSize:', viewerPrefs.getPickTrayByPDFSize());
+  console.log('PrintPageRange:', viewerPrefs.getPrintPageRange());
+  console.log('NumCopies:', viewerPrefs.getNumCopies());
 
-  const newPage = pdfDoc.addPage();
-  const fifthSuboutline = pdfDoc.addOutline('Fifth Outline (newPage: Page8)', { expanded: true, page: newPage });
-  const newPage2 = pdfDoc.addPage();
-  fifthSuboutline.addOutline('Grandchild of Fifth (newPage2: Page9)', { expanded: true, page: newPage2 });
-
-  /* Testing editing: */
-  suboutline.setTitle('Changed title');
-  outline.setPage(pdfDoc.getPage(7));
-  outline.setTitle('link changed to index 7: Page8');
-  suboutline.setExpanded(false);
-  thirdChild.setPage(newPage2);
-  thirdChild.setTitle('link changed to newPage2: Page9');
-
-  /* Testing changing DisplayMode*/
-  // pdfDoc.setDisplayMode(DisplayMode.ShowThumbnails);
-
-  /* Testing removing: */
-  // suboutline.remove();
-  // outline.remove();
-  // first.remove();
-
-  /**
-   * Testing removing a page that an outline is linked to.
-   * Outline will remain but link will not work as expected since 
-   * Ref is pointed to a non-existent PDFObject.
-   */
-  // pdfDoc.removePage(1);
-
-  /**
-  * Testing assertIs and assertRange
-  */
-  /* out of range */
-  // outline.setPage(null);
-  // outline.setPage(undefined);
-
-  const page = pdfDoc.addPage();
-
-  const img = await pdfDoc.embedJpg(
-    fs.readFileSync('assets/images/cmyk_colorspace.jpg'),
-  );
-
-  page.drawImage(img);
-
+  // Serialize the PDFDocument to bytes (a Uint8Array)
   const pdfBytes = await pdfDoc.save();
+
+  // For example, `pdfBytes` can be:
+  //   • Written to a file in Node
+  //   • Downloaded from the browser
+  //   • Rendered in an <iframe>
 
   fs.writeFileSync('out.pdf', pdfBytes);
   openPdf('out.pdf', Reader.Preview);

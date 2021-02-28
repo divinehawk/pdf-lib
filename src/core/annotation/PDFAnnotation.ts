@@ -39,6 +39,12 @@ class PDFAnnotation {
     this.dict.set(PDFName.of('Rect'), Rect);
   }
 
+  getAppearanceState(): PDFName | undefined {
+    const AS = this.dict.lookup(PDFName.of('AS'));
+    if (AS instanceof PDFName) return AS;
+    return undefined;
+  }
+
   setAppearanceState(state: PDFName) {
     this.dict.set(PDFName.of('AS'), state);
   }
@@ -54,6 +60,14 @@ class PDFAnnotation {
       this.dict.set(PDFName.of('AP'), AP);
     }
     return AP;
+  }
+
+  getNormalAppearance(): PDFRef | PDFDict {
+    const AP = this.ensureAP();
+    const N = AP.get(PDFName.of('N'));
+    if (N instanceof PDFRef || N instanceof PDFDict) return N;
+
+    throw new Error(`Unexpected N type: ${N?.constructor.name}`);
   }
 
   /** @param appearance A PDFDict or PDFStream (direct or ref) */

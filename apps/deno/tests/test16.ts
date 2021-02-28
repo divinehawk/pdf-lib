@@ -1,4 +1,6 @@
 import { Assets } from '../index.ts';
+
+// @deno-types="../dummy.d.ts"
 import { PDFDocument } from '../../../dist/pdf-lib.esm.js';
 
 const fieldNames = {
@@ -197,12 +199,15 @@ export default async (assets: Assets) => {
 
   const filingPartner = form.getTextField(fieldNames.FilingPartner);
   filingPartner.setText('Guinevere Pendragon');
+  filingPartner.setFontSize(4);
 
   const firstName = form.getTextField(fieldNames.FirstNameAndMiddleInitial);
   firstName.setText('Arthur F');
+  firstName.setFontSize(20);
 
   const lastName = form.getTextField(fieldNames.LastName);
   lastName.setText('Pendragon');
+  lastName.setFontSize(30);
 
   const ssn = form.getTextField(fieldNames.SSN);
   ssn.setText('123456789');
